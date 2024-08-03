@@ -55,12 +55,14 @@ agency_dfs = {agency: filtered_df[filtered_df["Agency"] == agency] for agency in
 def plot_proportions(agency, indicator):
     # Calculate the percentage of each unique value in the column for the selected agency
     percentage_of = agency_dfs[agency][indicator].value_counts(normalize=True) * 100
-    
+    absolute_counts = agency_dfs[agency][indicator].value_counts()
+
     # Create Plotly pie chart
-    fig = px.pie(values=percentage_of, names=percentage_of.index, title=f"Proportion of {indicator}",
-                 color_discrete_sequence=plotly_palette)
-    fig.update_traces(textinfo='percent+label')
-    fig.update_layout(showlegend = False)
+    fig = px.pie(values=absolute_counts, names=absolute_counts.index, title=f"Proportion of {indicator}",
+                 color_discrete_sequence=plotly_palette, 
+                 labels={'values': 'Count', 'names': indicator})
+    fig.update_traces(textinfo='label+percent+value')
+    fig.update_layout(showlegend=False)
     return fig
 
 def plot_histogram(agency, field):
