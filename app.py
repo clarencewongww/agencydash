@@ -19,7 +19,7 @@ def load_and_process_data():
     col_names = df.columns
     agency_list = df.Agency.unique()  # length = 8 
 
-    # Define categorical and date fields (ensure indices are correct)
+    # Define categorical and date fields
     date_fields = col_names[[2, 5]]  
     categorical_fields = col_names[[3, 4, 6, 7, 8]]
     int_fields = col_names[[1, 9]]  # Integer fields
@@ -137,7 +137,7 @@ def plot_scatter_avg_sick_leave(df, service_field, leave_field):
     avg_leave_by_service = df.groupby(service_field)[leave_field].mean().reset_index()
     fig = px.scatter(avg_leave_by_service, x=service_field, y=leave_field, 
                      title=f"Average Sick Leave by Years of Service", 
-                     labels={service_field: "Years of Service (in 2022)", leave_field: "Average Sick Leave"}, 
+                     labels={service_field: "Years of Service", leave_field: "Average Sick Leave"}, 
                      color_discrete_sequence=['blue'])
     return fig
 
