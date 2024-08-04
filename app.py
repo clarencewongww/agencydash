@@ -137,7 +137,7 @@ def plot_scatter_avg_sick_leave(df, service_field, leave_field):
     avg_leave_by_service = df.groupby(service_field)[leave_field].mean().reset_index()
     fig = px.scatter(avg_leave_by_service, x=service_field, y=leave_field, 
                      title=f"Average Sick Leave by Years of Service", 
-                     labels={service_field: "Years of Service", leave_field: "Average Sick Leave"}, 
+                     labels={service_field: "Years of Service (in 2022)", leave_field: "Average Sick Leave"}, 
                      color_discrete_sequence=['blue'])
     return fig
 
