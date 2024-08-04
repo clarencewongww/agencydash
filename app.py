@@ -27,6 +27,8 @@ def load_and_process_data():
     # Convert date columns to year
     df['Year of Birth'] = pd.to_datetime(df[date_fields[0]]).dt.year
     df['Year of Joining'] = pd.to_datetime(df[date_fields[1]]).dt.year
+    df['Years of Service'] = 2022 - df['Year of Joining']
+    df['Age'] = 2022 - df['Year of Birth']
     
     return df, agency_list, categorical_fields, int_fields
 
@@ -47,8 +49,8 @@ for agency in agency_list:
 min_dob, max_dob = df['Year of Birth'].min(), df['Year of Birth'].max()
 dob_range = st.sidebar.slider("Select Year of Birth Range", min_value=min_dob, max_value=max_dob, value=(min_dob, max_dob))
 
-min_doj, max_doj = df['Year of Joining'].min(), df['Year of Joining'].max()
-doj_range = st.sidebar.slider("Select Year of Joining Range", min_value=min_doj, max_value=max_doj, value=(min_doj, max_doj))
+min_doj, max_doj = df['Years of Service'].min(), df['Years of Service'].max()
+doj_range = st.sidebar.slider("Select Years of Service Range (in 2022)", min_value=min_doj, max_value=max_doj, value=(min_doj, max_doj))
 
 # Categorical filters
 cat_filters = {}
@@ -59,7 +61,7 @@ for field in categorical_fields:
 
 # Filter the dataframe based on the selected year ranges
 filtered_df = df[(df['Year of Birth'] >= dob_range[0]) & (df['Year of Birth'] <= dob_range[1]) & 
-                 (df['Year of Joining'] >= doj_range[0]) & (df['Year of Joining'] <= doj_range[1])]
+                 (df['Years of Service'] >= doj_range[0]) & (df['Years of Service'] <= doj_range[1])]
 
 # Filter the dataframe based on selected categorical options
 for field, selected_options in cat_filters.items():
@@ -68,6 +70,34 @@ for field, selected_options in cat_filters.items():
 # Filter the dataframe based on selected agencies
 filtered_df = filtered_df[filtered_df['Agency'].isin(agency_selected)]
 
+# Create sections
+instruction_summary_section = st.empty()
+categorical_section = st.empty()
+leave_section = st.empty()
+comparison_section = st.empty()
+
+# Instruction and Summary Section
+with instruction_summary_section.container():
+    col1, col2 = st.columns([3,2], gap = "medium")
+    with col1:
+        st.subheader("Instructions")
+        st.write("""
+        This dashboard allows you to filter and analyze staff data based on various criteria.
+        Use the sidebar to select the agency, year ranges, and other categorical filters.
+        The filtered data and visualizations will be displayed below.
+                 
+        Lastest data as of year 2022. 
+        """)
+    with col2:
+        st.subheader("Summary Data")
+        total_employees = len(filtered_df)
+        avg_years_of_service = filtered_df['Years of Service'].mean()
+        avg_leave_taken = filtered_df[int_fields[1]].mean()
+        st.markdown(f"**Total Employees:** {total_employees}")
+        st.markdown(f"**Average Years of Service:** {avg_years_of_service:.2f}")
+        st.markdown(f"**Average Sick Leave Taken:** {avg_leave_taken:.2f}")
+
+# Function to plot proportions
 def plot_proportions(df, indicator):
     # Calculate the percentage of each unique value in the column for the selected agency
     percentage_of = df[indicator].value_counts(normalize=True) * 100
@@ -81,83 +111,76 @@ def plot_proportions(df, indicator):
     fig.update_layout(showlegend=False)
     return fig
 
+# Function to plot histogram
 def plot_histogram(df, field):
     data = df[field]
     fig = px.histogram(data, x=field, nbins=20, title=f"Histogram of {field}", color_discrete_sequence=['skyblue'])
     return fig
 
+# Function to plot boxplot
 def plot_boxplot(df, field):
     data = df[field]
     fig = px.box(data, x=field, title=f"Box Plot of {field}", color_discrete_sequence=['lightgreen'])
     return fig
 
+# Function to plot bar chart
 def plot_bar_chart(df, field):
     avg_sick_leave = df.groupby('Agency')[field].mean().sort_values()
     fig = px.bar(avg_sick_leave, x=avg_sick_leave.values, y=avg_sick_leave.index, orientation='h',
-                 title=f"Average {field} by Agency", color_discrete_sequence=['coral'])
+                 title=f"Average {field} by Agency", color_discrete_sequence=['coral'],
+                 labels={'x': 'Sick Leave Consumed (Days)', 'y': 'Agency'})
     return fig
 
-# Create two columns
-col1, col2 = st.columns(2)
 
-# Display the plots for all categorical indicators
-for i, col_of_int in enumerate(categorical_fields):
-    if i % 2 == 0:
-        with col1:
-            st.markdown('<div style="text-align: center;">', unsafe_allow_html=True)
-            st.plotly_chart(plot_proportions(filtered_df, col_of_int))
-            st.markdown('</div>', unsafe_allow_html=True)
-    else:
-        with col2:
-            st.markdown('<div style="text-align: center;">', unsafe_allow_html=True)
-            st.plotly_chart(plot_proportions(filtered_df, col_of_int))
-            st.markdown('</div>', unsafe_allow_html=True)
+# Function to plot scatter plot of average sick leave by years of service
+def plot_scatter_avg_sick_leave(df, service_field, leave_field):
+    avg_leave_by_service = df.groupby(service_field)[leave_field].mean().reset_index()
+    fig = px.scatter(avg_leave_by_service, x=service_field, y=leave_field, 
+                     title=f"Average Sick Leave by Years of Service", 
+                     labels={service_field: "Years of Service", leave_field: "Average Sick Leave"}, 
+                     color_discrete_sequence=['blue'])
+    return fig
 
-# Display the histogram for the integer field
-with col1:
-    st.markdown('<div style="text-align: center;">', unsafe_allow_html=True)
-    st.plotly_chart(plot_histogram(filtered_df, int_fields[1]))
-    st.markdown('</div>', unsafe_allow_html=True)
+# Function to plot scatter plot of average sick leave by age
+def plot_scatter_avg_sick_leave_age(df, age_field, leave_field):
+    avg_leave_by_age = df.groupby(age_field)[leave_field].mean().reset_index()
+    fig = px.scatter(avg_leave_by_age, x=age_field, y=leave_field, 
+                     title=f"Average Sick Leave by Age", 
+                     labels={age_field: "Age (in 2022)", leave_field: "Average Sick Leave"}, 
+                     color_discrete_sequence=['green'])
+    return fig
 
-# Display the box plot for the integer field
-with col2:
-    st.markdown('<div style="text-align: center;">', unsafe_allow_html=True)
-    st.plotly_chart(plot_boxplot(filtered_df, int_fields[1]))
-    st.markdown('</div>', unsafe_allow_html=True)
+# Categorical Section
+with categorical_section.container():
+    st.subheader("Profile Data")
+    col1, col2 = st.columns(2)
+    for i, col_of_int in enumerate(categorical_fields):
+        if i % 2 == 0:
+            with col1:
+                st.plotly_chart(plot_proportions(filtered_df, col_of_int))
+        else:
+            with col2:
+                st.plotly_chart(plot_proportions(filtered_df, col_of_int))
 
-# Display the bar chart for the integer field
-with col1:
-    st.markdown('<div style="text-align: center;">', unsafe_allow_html=True)
-    st.plotly_chart(plot_bar_chart(filtered_df, int_fields[1]))
-    st.markdown('</div>', unsafe_allow_html=True)
+# Leave Section
+with leave_section.container():
+    st.subheader("Leave Data")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.plotly_chart(plot_histogram(filtered_df, int_fields[1]))
+        st.plotly_chart(plot_scatter_avg_sick_leave(filtered_df, 'Years of Service', int_fields[1]))
+    with col2:
+        st.plotly_chart(plot_boxplot(filtered_df, int_fields[1]))
+        st.plotly_chart(plot_scatter_avg_sick_leave_age(filtered_df, 'Age', int_fields[1]))
 
-# Create an empty container at the bottom and display the filtered dataframe
-st.markdown('<div style="text-align: center;">', unsafe_allow_html=True)
 
-# Reorder the columns such that the 3rd column from the back becomes the 3rd column from the front
-cols = filtered_df.columns.tolist()
-cols.insert(2, cols.pop(-3))
-filtered_df_sorted = filtered_df[cols].sort_values(by=int_fields[1], ascending=False)
+# Comparison Section
+with comparison_section.container():
+    st.subheader("Referencing Between Agency Data")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.plotly_chart(plot_bar_chart(filtered_df, int_fields[1]))
 
-st.write(filtered_df_sorted)
-st.markdown('</div>', unsafe_allow_html=True)
-
-# Update Streamlit theme
-st.markdown("""
-    <style>
-        .reportview-container {
-            background-color: #f0f0f0;
-        }
-        .sidebar .sidebar-content {
-            background-color: #ffffff;
-        }
-        .css-18e3th9 {
-            color: #333333;
-        }
-        .stButton>button {
-            background-color: #007BFF;
-            color: white;
-            border-radius: 5px;
-        }
-    </style>
-    """, unsafe_allow_html=True)
+# Display the filtered dataframe
+st.subheader("Filtered Data")
+st.write(filtered_df)
